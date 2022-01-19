@@ -18,7 +18,9 @@ import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+
 import java.nio.charset.StandardCharsets;
+
 import java.util.concurrent.TimeUnit;
 
 
@@ -46,11 +48,22 @@ public class RedisLockAspect {
     public Object action(ProceedingJoinPoint point) throws Throwable {
         MethodSignature method = (MethodSignature) point.getSignature();
         RedisLock annotation = method.getMethod().getAnnotation(RedisLock.class);
-        Object[] args = point.getArgs();
-        String key = (String) args[annotation.arg()];
+        String fullName = null;
         String lockKey = annotation.key();
-        //lock.{lockKey}.{arg}
-        String fullName = PREFIX+ lockKey+"."+key;
+        if (annotation.argRequire()) {
+            try{
+                Object[] args = point.getArgs();
+                String key = (String) args[annotation.arg()];
+                //lock.{lockKey}.{arg}
+                fullName = PREFIX + lockKey + "." + key;
+            }catch (Exception e){
+                throw new RedisLockException("获取方法参数失败:无参数或指定参数类型不是String!", e);
+            }
+
+        } else {
+            fullName = PREFIX + lockKey;
+        }
+
         long expire = annotation.expire();
         TimeUnit timeUnit = annotation.timeUnit();
         LockPolicy policy = annotation.lockPolicy();
@@ -73,8 +86,7 @@ public class RedisLockAspect {
                     if (isOwn(String.valueOf(Thread.currentThread().getId()), fullName)) {
                         return point.proceed();
                     }
-                    while (!lock(fullName, expire, timeUnit)) {
-                    }
+                    while (!lock(fullName, expire, timeUnit));
                     return point.proceed();
                 } finally {
                     unlock(fullName);
@@ -100,26 +112,36 @@ public class RedisLockAspect {
     }
 
     @SuppressWarnings("unchecked")
-    private boolean lock(String key, long duration, TimeUnit timeUnit) {
-        return Boolean.TRUE.equals(redisTemplate.execute(new RedisCallback<Boolean>() {
-            @Override
-            public Boolean doInRedis(RedisConnection redisConnection) throws DataAccessException {
-                try {
-                    String val = String.valueOf(Thread.currentThread().getId());
-                    long expire = timeUnit.toSeconds(duration);
-                    byte[] byteKey = key.getBytes(StandardCharsets.UTF_8);
-                    byte[] byteVal = val.getBytes(StandardCharsets.UTF_8);
-                    Boolean flag = redisConnection.setNX(byteKey, byteVal);
-                    if (flag != null && flag) {
-                        redisConnection.expire(byteKey, expire);
+    private boolean lock(String key, long duration, TimeUnit timeUnit)throws RedisLockException {
+        try{
+            return Boolean.TRUE.equals(redisTemplate.execute(new RedisCallback<Boolean>() {
+                @Override
+                public Boolean doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                    try {
+                        String val = String.valueOf(Thread.currentThread().getId());
+                        long expire = timeUnit.toSeconds(duration);
+                        byte[] byteKey = key.getBytes(StandardCharsets.UTF_8);
+                        byte[] byteVal = val.getBytes(StandardCharsets.UTF_8);
+//                    Boolean flag = redisConnection.setNX(byteKey, byteVal);
+                        Object set = redisConnection.execute("set", byteKey,
+                                byteVal,
+                                "NX".getBytes(StandardCharsets.UTF_8),
+                                "EX".getBytes(StandardCharsets.UTF_8),
+                                String.valueOf(expire).getBytes(StandardCharsets.UTF_8));
+//                    if (flag != null && flag) {
+//                        redisConnection.expire(byteKey, expire);
+//                    }
+//                    return flag;
+                        return "OK".equals(set);
+                    } catch (Exception ex) {
+                        logger.error("访问redis失败", ex);
+                        throw ex;
                     }
-                    return flag;
-                } catch (Exception e) {
-                    logger.error("获取锁错误");
                 }
-                return false;
-            }
-        }));
+            }));
+        }catch (Exception ex){
+            throw new RedisLockException("获取锁时发生错误",ex);
+        }
     }
 
     @SuppressWarnings("unchecked")

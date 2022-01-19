@@ -49,6 +49,8 @@ public @interface RedisLock {
     LockPolicy lockPolicy() default LockPolicy.LOOP;
 
 
+    boolean argRequire() default true;
+
 }
 
 

@@ -64,14 +64,30 @@ public boolean  placeOrder(String uid) {
 
 设置锁获取策略
 
-只获取一次，失败则抛出异常 
+只获取一次
 ```java
 
 @RedisLock(key = "order",lockPolicy = LockPolicy.ONCE)
 public boolean  placeOrder(String uid) {
         ....
         }
-```    
+```     
+获取失败后抛出异常 
+```java
+
+Caused by: com.nullpointerw.redisLock.exception.RedisLockException: REDIS KEY: thread:91未能获取锁,获取策略:[ONCE]
+        at com.nullpointerw.redisLock.aop.RedisLockAspect.action(RedisLockAspect.java:79)
+        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.lang.reflect.Method.invoke(Method.java:498)
+        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:634)
+        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:624)
+        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:72)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:175)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:750) 
+        ...
+```     
 循环尝试获取，直到获取成功
 ```java
 

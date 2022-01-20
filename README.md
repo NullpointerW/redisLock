@@ -32,9 +32,9 @@ spring:
 ```java
 
 @RedisLock(key = "order")
-public boolean  placeOrder(String uid) {
+public boolean placeOrder(String uid){
         ....
-        }
+}
 ``` 
 
 ## 可选参数 
@@ -42,9 +42,9 @@ public boolean  placeOrder(String uid) {
 ```java
 
 @RedisLock(key = "order",expire = 5,timeUnit = TimeUnit.MINUTES)
-public boolean  placeOrder(String uid) {
+public boolean placeOrder(String uid){
         ....
-        }
+}
 ```  
 
 ### 锁的二级名称
@@ -52,18 +52,18 @@ public boolean  placeOrder(String uid) {
 #### 设置二级名称，并指定参数
 ```java
 
-@RedisLock(key = "order",arg=1)
-public boolean  placeOrder(String uid,String code) {
+@RedisLock(key = "order",arg = 1)
+public boolean placeOrder(String uid,String code) {
         ....
-        }
+}
 ```   
 #### 不设置二级名称
 ```java
 
 @RedisLock(key = "order",argRequire = false)
-public boolean  placeOrder(String uid) {
+public boolean placeOrder(String uid){
         ....
-        }
+}
 ```
 
 ### 设置获取锁策略 
@@ -72,9 +72,9 @@ public boolean  placeOrder(String uid) {
 ```java
 
 @RedisLock(key = "order",lockPolicy = LockPolicy.ONCE)
-public boolean  placeOrder(String uid) {
+public boolean placeOrder(String uid){
         ....
-        }
+}
 ```     
 获取失败后抛出异常 
 ```java
@@ -96,7 +96,7 @@ Caused by: com.nullpointerw.redisLock.exception.RedisLockException: REDIS KEY: t
 ```java
 
 @RedisLock(key = "order",lockPolicy = LockPolicy.LOOP)
-public boolean  placeOrder(String uid) {
+public boolean placeOrder(String uid){
         ....
-        }
+}
 ```    

@@ -35,7 +35,7 @@ public boolean  placeOrder(String uid) {
         }
 ``` 
 
-##可选参数
+## 可选参数 
 设置锁的过期时间
 ```java
 
@@ -62,7 +62,7 @@ public boolean  placeOrder(String uid) {
         }
 ```
 
-设置锁获取策略
+### 设置获取锁策略 
 
 只获取一次
 ```java

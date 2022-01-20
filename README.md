@@ -76,7 +76,7 @@ public boolean  placeOrder(String uid) {
         ....
         }
 ```     
-##### 获取失败后抛出异常 
+获取失败后抛出异常 
 ```java
 
 Caused by: com.nullpointerw.redisLock.exception.RedisLockException: REDIS KEY: thread:91未能获取锁,获取策略:[ONCE]

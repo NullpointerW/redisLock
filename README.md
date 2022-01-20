@@ -26,7 +26,7 @@ spring:
     timeout: 7200
     ...
 ``` 
-3、在方法上使用@RedisLock注解 
+3、在方法上使用`@RedisLock`注解 
 
 默认使用
 ```java

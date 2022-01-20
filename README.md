@@ -62,7 +62,7 @@ public boolean  placeOrder(String uid) {
         }
 ```
 
-设置锁获取策略
+### 设置获取锁策略 
 
 只获取一次，失败则抛出异常 
 ```java

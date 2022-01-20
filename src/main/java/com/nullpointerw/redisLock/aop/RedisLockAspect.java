@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
@@ -21,7 +22,10 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+
+import static com.nullpointerw.redisLock.executor.RedisTemplateLockExecutor.LUA_EVAL_SCRIPT_UNLOCK;
 
 
 /**
@@ -51,12 +55,12 @@ public class RedisLockAspect {
         String fullName = null;
         String lockKey = annotation.key();
         if (annotation.argRequire()) {
-            try{
+            try {
                 Object[] args = point.getArgs();
                 String key = (String) args[annotation.arg()];
                 //lock.{lockKey}.{arg}
                 fullName = PREFIX + lockKey + "." + key;
-            }catch (Exception e){
+            } catch (Exception e) {
                 throw new RedisLockException("获取方法参数失败:无参数或指定参数类型不是String!", e);
             }
 
@@ -86,10 +90,14 @@ public class RedisLockAspect {
                     if (isOwn(String.valueOf(Thread.currentThread().getId()), fullName)) {
                         return point.proceed();
                     }
-                    while (!lock(fullName, expire, timeUnit));
+                    while (!lock(fullName, expire, timeUnit)) ;
                     return point.proceed();
                 } finally {
-                    unlock(fullName);
+                    if (unlock(fullName, String.valueOf(Thread.currentThread().getId()))) {
+                        logger.info("REDIS KEY: thread:" + Thread.currentThread().getId() + "释放锁成功");
+                    } else {
+                        logger.error("REDIS KEY: thread:" + Thread.currentThread().getId() + "释放锁失败");
+                    }
                 }
         }
 
@@ -112,8 +120,8 @@ public class RedisLockAspect {
     }
 
     @SuppressWarnings("unchecked")
-    private boolean lock(String key, long duration, TimeUnit timeUnit)throws RedisLockException {
-        try{
+    private boolean lock(String key, long duration, TimeUnit timeUnit) throws RedisLockException {
+        try {
             return Boolean.TRUE.equals(redisTemplate.execute(new RedisCallback<Boolean>() {
                 @Override
                 public Boolean doInRedis(RedisConnection redisConnection) throws DataAccessException {
@@ -122,16 +130,11 @@ public class RedisLockAspect {
                         long expire = timeUnit.toSeconds(duration);
                         byte[] byteKey = key.getBytes(StandardCharsets.UTF_8);
                         byte[] byteVal = val.getBytes(StandardCharsets.UTF_8);
-//                    Boolean flag = redisConnection.setNX(byteKey, byteVal);
                         Object set = redisConnection.execute("set", byteKey,
                                 byteVal,
                                 "NX".getBytes(StandardCharsets.UTF_8),
                                 "EX".getBytes(StandardCharsets.UTF_8),
                                 String.valueOf(expire).getBytes(StandardCharsets.UTF_8));
-//                    if (flag != null && flag) {
-//                        redisConnection.expire(byteKey, expire);
-//                    }
-//                    return flag;
                         return "OK".equals(set);
                     } catch (Exception ex) {
                         logger.error("访问redis失败", ex);
@@ -139,11 +142,12 @@ public class RedisLockAspect {
                     }
                 }
             }));
-        }catch (Exception ex){
-            throw new RedisLockException("获取锁时发生错误",ex);
+        } catch (Exception ex) {
+            throw new RedisLockException("获取锁时发生错误", ex);
         }
     }
 
+    @Deprecated
     @SuppressWarnings("unchecked")
     private void unlock(String key) {
         redisTemplate.execute((RedisCallback<Void>) redisConnection -> {
@@ -151,6 +155,19 @@ public class RedisLockAspect {
             redisConnection.del(byteKey);
             return null;
         });
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean unlock(String key, String val) {
+        byte[] scriptRes = (byte[]) redisTemplate.execute((RedisCallback<Object>) conn -> {
+            return conn.eval(LUA_EVAL_SCRIPT_UNLOCK.getScriptAsString().getBytes(StandardCharsets.UTF_8)
+                    , ReturnType.VALUE
+                    , 1
+                    , key.getBytes(StandardCharsets.UTF_8)
+                    , val.getBytes(StandardCharsets.UTF_8));
+        });
+
+        return scriptRes==null||"1".equals(new String(scriptRes, StandardCharsets.UTF_8));
     }
 
 

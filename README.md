@@ -1,7 +1,7 @@
 # redisLock
 基于RedisTemplate的分布式锁
 
-使用原子指令/LUA脚本控制获取与释放锁过程中的原子性
+通过set key value NX EX / LUA脚本保证获取与释放锁过程中的原子性
 
 支持可重复入，多种获取策略，方便、快捷、易用，只需一个注解；可对同一方法不同参数定制灵活的颗粒度锁。
 ## 使用 
@@ -38,7 +38,7 @@ public boolean  placeOrder(String uid) {
 ``` 
 
 ## 可选参数 
-设置锁的过期时间
+### 设置锁的过期时间
 ```java
 
 @RedisLock(key = "order",expire = 5,timeUnit = TimeUnit.MINUTES)
@@ -47,18 +47,20 @@ public boolean  placeOrder(String uid) {
         }
 ```  
 
-设置锁的二级名称的参数 
+### 锁的二级名称
+
+#### 设置二级名称，并指定参数
 ```java
 
-@RedisLock(key = "order",expire = 5,timeUnit = TimeUnit.MINUTES,arg=1)
+@RedisLock(key = "order",arg=1)
 public boolean  placeOrder(String uid,String code) {
         ....
         }
 ```   
-不设置二级名称
+#### 不设置二级名称
 ```java
 
-@RedisLock(key = "order",expire = 5,timeUnit = TimeUnit.MINUTES,argRequire = false)
+@RedisLock(key = "order",argRequire = false)
 public boolean  placeOrder(String uid) {
         ....
         }
@@ -66,7 +68,7 @@ public boolean  placeOrder(String uid) {
 
 ### 设置获取锁策略 
 
-只获取一次
+#### 只获取一次
 ```java
 
 @RedisLock(key = "order",lockPolicy = LockPolicy.ONCE)
@@ -74,7 +76,7 @@ public boolean  placeOrder(String uid) {
         ....
         }
 ```     
-获取失败后抛出异常 
+##### 获取失败后抛出异常 
 ```java
 
 Caused by: com.nullpointerw.redisLock.exception.RedisLockException: REDIS KEY: thread:91未能获取锁,获取策略:[ONCE]
@@ -90,7 +92,7 @@ Caused by: com.nullpointerw.redisLock.exception.RedisLockException: REDIS KEY: t
         at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:750) 
         ...
 ```     
-循环尝试获取，直到获取成功
+#### 循环尝试获取，直到获取成功
 ```java
 
 @RedisLock(key = "order",lockPolicy = LockPolicy.LOOP)

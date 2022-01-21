@@ -1,3 +1,4 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 com.nullpointerw.redisLock.aop.RedisLockAspect,\
-com.nullpointerw.redisLock.executor.RedisTemplateLockExecutor
+com.nullpointerw.redisLock.executor.RedisTemplateLockExecutor,\
+com.nullpointerw.redisLock.autoConfig.redisLockConfig

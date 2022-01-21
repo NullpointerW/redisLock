@@ -1,6 +1,5 @@
 package com.nullpointerw.redisLock.executor;
 
-import com.nullpointerw.redisLock.aop.RedisLockAspect;
 import com.nullpointerw.redisLock.exception.RedisLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +12,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
-
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 

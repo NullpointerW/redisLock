@@ -70,13 +70,12 @@ public class RedisTemplateLockExecutor {
     }
 
     @SuppressWarnings("unchecked")
-    public boolean lock(String key, long duration, TimeUnit timeUnit) throws RedisLockException {
+    public boolean lock(String key, String val,long duration, TimeUnit timeUnit) throws RedisLockException {
         try {
             return Boolean.TRUE.equals(redisTemplate.execute(new RedisCallback<Boolean>() {
                 @Override
                 public Boolean doInRedis(RedisConnection redisConnection) throws DataAccessException {
                     try {
-                        String val = String.valueOf(Thread.currentThread().getId());
                         long expire = timeUnit.toSeconds(duration);
                         byte[] byteKey = key.getBytes(StandardCharsets.UTF_8);
                         byte[] byteVal = val.getBytes(StandardCharsets.UTF_8);

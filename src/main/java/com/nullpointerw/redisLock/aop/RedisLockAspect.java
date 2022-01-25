@@ -70,8 +70,8 @@ public class RedisLockAspect {
         } else {
             fullName = PREFIX + lockKey;
         }
-
-        long expire = annotation.expire();
+        //如果启用全局配置项，覆盖注解设置
+        long expire = cfg.getExpireTime() != null ? cfg.getExpireTime() : annotation.expire();
         TimeUnit timeUnit = annotation.timeUnit();
         LockPolicy policy = annotation.lockPolicy();
         switch (policy) {
@@ -80,12 +80,16 @@ public class RedisLockAspect {
                     return point.proceed();
                 }
                 logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.ACQUIRE);
-                if (lockExecutor.lock(fullName, expire, timeUnit)) {
+                if (lockExecutor.lock(fullName, getThreadId(),expire, timeUnit)) {
                     try {
                         logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.ACQUIRE_SUCCESS);
                         return point.proceed();
                     } finally {
-                        lockExecutor.unlock(fullName);
+                        if (lockExecutor.unlock(fullName, String.valueOf(Thread.currentThread().getId()))) {
+                            logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.UNLOCK_SUCCESS);
+                        } else {
+                            logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.UNLOCK_FAILURE);
+                        }
                     }
                 } else {
                     throw new RedisLockException("REDIS LOCK: thread-" + Thread.currentThread().getId() + " 未能获取锁,获取策略:[ONCE]");
@@ -96,7 +100,10 @@ public class RedisLockAspect {
                         return point.proceed();
                     }
                     logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.ACQUIRE);
-                    while (!lockExecutor.lock(fullName, expire, timeUnit)) {
+                    if(cfg.getAcquireTimeOut()!=null&&cfg.getAcquireTimeOut()>0L){
+
+                    }
+                    while (!lockExecutor.lock(fullName, getThreadId(),expire, timeUnit)) {
                         logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.ACQUIRE_FAILURE);
                     }
                     ;
@@ -117,22 +124,22 @@ public class RedisLockAspect {
     }
 
     private void logging(String key, String threadId, String msg, AcquireLoggingStatus status) {
-        if (cfg != null && cfg.isAcquireLogTracking()) {
+        if (cfg != null && Boolean.TRUE.equals(cfg.getAcquireLogTracking())) {
             switch (status) {
                 case ACQUIRE:
-                    logger.info("REDIS LOCK: thread-{} 开始获取锁 lock key= {}", key, threadId);
+                    logger.info("REDIS LOCK: thread-{} 开始获取锁 lock key= {}", threadId, key);
                     break;
                 case ACQUIRE_SUCCESS:
-                    logger.warn("REDIS LOCK: thread-{} 获取锁成功 lock key= {}", key, threadId);
+                    logger.warn("REDIS LOCK: thread-{} 获取锁成功 lock key= {}", threadId, key);
                     break;
                 case ACQUIRE_FAILURE:
-                    logger.warn("REDIS LOCK: thread-{} 获取锁失败,准备下一轮尝试 lock key= {}", key, threadId);
+                    logger.warn("REDIS LOCK: thread-{} 获取锁失败,准备下一轮尝试 lock key= {}", threadId, key);
                     break;
                 case UNLOCK_SUCCESS:
-                    logger.warn("REDIS LOCK: thread-{} 释放锁成功 lock key= {}", key, threadId);
+                    logger.warn("REDIS LOCK: thread-{} 释放锁成功 lock key= {}", threadId, key);
                     break;
                 default:
-                    logger.error("REDIS LOCK: thread-{} 释放锁失败 lock key= {}", key, threadId);
+                    logger.error("REDIS LOCK: thread-{} 释放锁失败 lock key= {}", threadId, key);
                     break;
             }
         }

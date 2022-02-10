@@ -80,12 +80,12 @@ public class RedisLockAspect {
                     return point.proceed();
                 }
                 logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.ACQUIRE);
-                if (lockExecutor.lock(fullName, getThreadId(),expire, timeUnit)) {
+                if (lockExecutor.lock(fullName, getThreadId(), expire, timeUnit)) {
                     try {
                         logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.ACQUIRE_SUCCESS);
                         return point.proceed();
                     } finally {
-                        if (lockExecutor.unlock(fullName, String.valueOf(Thread.currentThread().getId()))) {
+                        if (lockExecutor.unlock(fullName, getThreadId())) {
                             logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.UNLOCK_SUCCESS);
                         } else {
                             logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.UNLOCK_FAILURE);
@@ -95,22 +95,26 @@ public class RedisLockAspect {
                     throw new RedisLockException("REDIS LOCK: thread-" + Thread.currentThread().getId() + " 未能获取锁,获取策略:[ONCE]");
                 }
             default:
+                long exp = 0;
                 try {
                     if (lockExecutor.isOwner(getThreadId(), fullName)) {
                         return point.proceed();
                     }
                     logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.ACQUIRE);
-                    if(cfg.getAcquireTimeOut()!=null&&cfg.getAcquireTimeOut()>0L){
-
+                    if (cfg.getAcquireTimeOut() != null && cfg.getAcquireTimeOut() > 0L) {
+                        exp = System.currentTimeMillis() + cfg.getAcquireTimeOut();
                     }
-                    while (!lockExecutor.lock(fullName, getThreadId(),expire, timeUnit)) {
+                    while (!lockExecutor.lock(fullName, getThreadId(), expire, timeUnit)) {
                         logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.ACQUIRE_FAILURE);
+                        if (exp > 0 && System.currentTimeMillis() > exp) {
+                            throw new RedisLockException("REDIS LOCK: thread-" + Thread.currentThread().getId() + " 获取超时 time out:" + cfg.getAcquireTimeOut() + "ms");
+                        }
                     }
                     ;
                     logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.ACQUIRE_SUCCESS);
                     return point.proceed();
                 } finally {
-                    if (lockExecutor.unlock(fullName, String.valueOf(Thread.currentThread().getId()))) {
+                    if (lockExecutor.unlock(fullName, getThreadId())) {
                         logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.UNLOCK_SUCCESS);
                     } else {
                         logging(fullName, String.valueOf(Thread.currentThread().getId()), null, AcquireLoggingStatus.UNLOCK_FAILURE);
